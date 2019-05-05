@@ -55,24 +55,29 @@ function NextFragmentRequestRule(config) {
         const mediaType = streamProcessor.getType();
         const hasSeekTarget = !isNaN(seekTarget);
         const bufferController = streamProcessor.getBufferController();
-        const currentTime = playbackController.getNormalizedTime();
-        let time = hasSeekTarget ? seekTarget : streamProcessor.getIndexHandlerTime();
+        const currentTime = playbackController.getNormalizedTime(); // Video.currentTime
+        let time = hasSeekTarget ? seekTarget : streamProcessor.getIndexHandlerTime(); // Time contained in fragment targeted
         let bufferIsDivided = false;
         let request;
 
         if (isNaN(time) || (mediaType === Constants.FRAGMENTED_TEXT && !textController.isTextEnabled())) {
             return null;
         }
+
         /**
          * This is critical for IE/Safari/EDGE
          * */
         if (bufferController) {
-            let range = bufferController.getRangeAt(time);
-            const playingRange = bufferController.getRangeAt(currentTime);
+            let range = bufferController.getRangeAt(time); // Range containing time targeted.
+            const playingRange = bufferController.getRangeAt(currentTime); // Range containing Video.currentTime
             const hasDiscontinuities = bufferController.getBuffer().hasDiscontinuitiesAfter(currentTime);
             if ((range !== null || playingRange !== null) && !hasSeekTarget) {
+                // Range defined, and playingRange != range
                 if (!range || (playingRange && playingRange.start != range.start && playingRange.end != range.end)) {
+                    // If buffer has gaps greater than .99s ...
                     if (hasDiscontinuities && mediaType !== Constants.FRAGMENTED_TEXT) {
+                        // Remove requests after end of playing range.
+                        logger.debug('Found discontinuities after end of playing range at', playingRange.end);
                         streamProcessor.getFragmentModel().removeExecutedRequestsAfterTime(playingRange.end);
                         bufferIsDivided = true;
                     }
